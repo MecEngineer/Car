@@ -7,14 +7,14 @@ airDens = 1.2
 
 
 class Engine:
-    def __init__(self, engineData, startRPM, maxRPM, method='engineMap'):
+    def __init__(self, engineData, startRPM, maxRPM, method='engineMap', engineType='diesel'):
         if method == 'engineMap':
             engineMapFile = engineData
             self.torqueFunction = interpolation.map2Function(engineMapFile)
 
         elif method == 'engineParamaters':
             Tmax, Pmax = engineData
-            self.torqueFunction = interpolation.paramaters2Function(Tmax, Pmax)
+            self.torqueFunction = interpolation.paramaters2Function(Tmax, Pmax, maxRPM, engineType)
 
         self.startRPM = startRPM
         self.maxRPM = maxRPM
@@ -79,10 +79,12 @@ class Car:
 
         if config['engineMethod'] == 'engineMap':
             engineData = config['engineMap']
+            self.Engine = Engine(engineData, config['startRPM'], config['maxRPM'], method=config['engineMethod'])
         elif config['engineMethod'] == 'engineParamaters':
             engineData = (config['maxTorque'], config['maxPower'])
+            self.Engine = Engine(engineData, config['startRPM'], config['maxRPM'],
+                                 method=config['engineMethod'], engineType=config['engineType'])
 
-        self.Engine = Engine(engineData, config['startRPM'], config['maxRPM'], method=config['engineMethod'])
         self.Gearbox = Gearbox(config['gears'], config['fixedRatio'], config['upshifting'], config['downshifting'], config['shiftTime'])
 
         self.startTime = 0.5
@@ -103,7 +105,8 @@ class Car:
         else:
             brakes = 0
         FBrakeing = cos(self.inclination * pi / 180) * brakes * self.mass * g * self.frictionResistanceCoefficient
-        FRollingResistance = self.mass * g * self.rollingResistanceCoefficient
+        actualRollingResistanceCoefficient = self.rollingResistanceCoefficient + 0.0045 * (self.velocity * 3.6 / 100)**2
+        FRollingResistance = self.mass * g * actualRollingResistanceCoefficient
         FDrag = 0.5 * airDens * self.velocity ** 2 * self.crossArea * self.dragCoefficient
         if self.velocity > 0:
             sign = -1
@@ -128,7 +131,7 @@ class Car:
         return angularVelocity * (0.5 * self.wheelDiameter)
 
     def update(self, dt):
-        self.acceleration = self.getTotalForce() / (self.mass * 1.02)
+        self.acceleration = self.getTotalForce() / (self.mass * 1.03)
         self.velocity = self.velocity + self.acceleration * dt
         self.path = self.path + self.velocity * dt
 

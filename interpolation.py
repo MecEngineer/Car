@@ -43,18 +43,25 @@ class Function:
         print x*self.a
         print y*self.b
 
+def p2t(p, rpm):
+    return p * 60 * 1000 / (rpm * 2 * pi)
+
 def map2Function(FileName):
     x, y, z = readDAT_2D(FileName)
-    print x
-    print z[-1]
     f = interpolate.interp2d(x, y, z, kind='cubic')
     return f
 
-def paramaters2Function(maxTorque, maxPower):
+def paramaters2Function(maxTorque, maxPower, rpm_max, type):
     rpm_tmax, tmax = maxTorque
     rpm_pmax, pmax = maxPower
-    rpm = np.array([-rpm_tmax/2, rpm_tmax/2, rpm_tmax, rpm_pmax])
-    torque = np.array([0, pmax * 60 * 1000 / (rpm_pmax * 2 * pi), tmax, pmax * 60 * 1000 / (rpm_pmax * 2 * pi)])
-    coefficients = np.polyfit(rpm, torque, 4)
-    torque_function = np.poly1d(coefficients)
+    if type == 'diesel':
+        rpm = np.array([-rpm_tmax / 2, rpm_tmax / 2, rpm_tmax, (rpm_tmax + rpm_pmax) / 2, rpm_pmax, rpm_max])
+        torque = np.array([0, 0.8 * p2t(pmax, rpm_pmax), tmax, tmax, p2t(pmax, rpm_pmax), p2t(0.7 * pmax, rpm_max)])
+    elif type == 'gasoline':
+        rpm = np.array([-rpm_tmax / 3, rpm_tmax / 2, rpm_tmax, rpm_pmax, rpm_max])
+        kmax = rpm_pmax / float(rpm_max)
+        torque = np.array([0, 0.8 * p2t(pmax, rpm_pmax), tmax, p2t(pmax, rpm_pmax), p2t(kmax * pmax, rpm_max)])
+    #coefficients = np.polyfit(rpm, torque, 4)
+    #torque_function = np.poly1d(coefficients)
+    torque_function = interpolate.interp1d(rpm, torque, kind='cubic')
     return torque_function
